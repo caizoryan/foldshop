@@ -4,7 +4,6 @@ import { dom } from './dom.js'
 import { s } from "./scale.js"
 import { runa, o, f, isFunction, fn, isObject, isScopedFunction, isSymbol } from './runa.js'
 import { printing, drawSaddle, drawSignature, setprinting, foot, signature, spread, drawSaddleDouble } from './baselibrary.js'
-import { images } from "./data.js"
 
 let inc = .5
 let renderers = {
@@ -26,7 +25,7 @@ let renderers = {
 let width = s.inch(10)
 let height = s.inch(8)
 // let viewport = .8
-let viewport = 1
+let viewport = .8 
 
 let sheet2 = {
 	color: '#dff9',
@@ -94,11 +93,9 @@ class Structure {}
 
 let mapfn = fn => arr => arr.map(fn)
 
-p.preload = () => {
-	images.forEach((e, i) => e.image = p.loadImage(e.src))
-}
 p.setup = () => {
 	// p.createCanvas(s.inch(11), s.inch(17))
+	// p.createCanvas(s.inch(11*3), s.inch(8.5/3))
 	p.createCanvas(s.inch(11), s.inch(8.5))
 	let el = document.querySelector(".q5")
 	el.style.transform = "scale(" + (1 / s.scale) * viewport + ")"
@@ -114,9 +111,7 @@ oninit.push(() => {
 	pagenums.forEach(f => f.subscribe(render))
 	render()
 })
-
 function render() {
-
 	let transform = a => a
 		.map(mapfn(e => runa(e)))
 		.map(f => spread(f, (g) => g))
@@ -176,6 +171,7 @@ function render() {
 	}
 	else {
 		p.background('#eee')
+		// signatures[1].spreads[1].draw(p, {sheet1})
 		drawSignature(p,
 			signatures[1].spreads,
 			signatures[1].sheets,
@@ -398,6 +394,19 @@ let ui = dom(
 				button(() => mode.toggle(), mode),
 				button(() => p.save("ead-spreads-" + pagenums[1].value() + ".jpg"), 'download'),
 				button(exportmaybe, 'export')
+			],
+
+			['div',
+			 button(() => {
+				 let m = document.querySelector(".main-container")
+				 m.style.left  = (parseFloat(m.style.left) - 200) + 'px'
+				}, "<-"),
+			 button(() => {
+				 let m = document.querySelector(".main-container")
+				 console.log(m.style.left)
+				 if (m.style.left) m.style.left = (parseFloat(m.style.left) + 200) + 'px'
+				 else m.style.left = '180px'
+				}, "->"),
 			],
 		]])
 

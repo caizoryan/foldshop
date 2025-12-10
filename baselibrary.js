@@ -1,7 +1,7 @@
 import { s } from "./scale.js"
 import { runa, f, o, isObject } from './runa.js'
 import {
-	images, interview_zhang, grace, liang, zhu, interview_liang, interview_zhu, interview_park,
+	interview_zhang, grace, liang, zhu, interview_liang, interview_zhu, interview_park,
 	liang_major, park_major, credits, names, zhang_major, zhu_major, liang_amajor, park_amajor, zhu_amajor, blurb
 } from "./data.js"
 import { hyphenateSync } from "./lib/hyphenator/hyphenate.js"
@@ -935,16 +935,6 @@ export let reduceprops = (props) => props.reduce((acc, tuple) => {
 		return acc
 	}
 }, {})
-let image = (props) => ({
-
-	draw: (p) => {
-		let img = images.find(e => e.name == props.image).image
-		let w = props.length
-		let ratio = w / image.width
-		let h = image.height * ratio
-		p.image(img, props.x, props.y, w, h)
-	}
-})
 
 export let rootenv = {
 	"foot": foot,
@@ -960,7 +950,6 @@ export let rootenv = {
 	"p5": (args, env) => {
 		// [p5 [background, 255]]
 	},
-	"image": image,
 	"position": (args, env) => {
 		return {
 			x: args[0],
