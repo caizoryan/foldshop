@@ -24,7 +24,6 @@ export class Scale {
 	em(value) {return this.inch(value / 6)}
 	px(value) {return value * this.scale}
 	px_raw(value) {return value}
-	pixel(value) { return value }
 	inch(value) {return value * this.dpi * this.scale}
 	pica(value) { return this.em(value) }
 	picas(value) { return this.pica(value) }

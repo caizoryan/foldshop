@@ -25,7 +25,65 @@ let renderers = {
 let width = s.inch(10)
 let height = s.inch(8)
 // let viewport = .8
-let viewport = .8 
+let viewport = .8
+let right = true
+
+let v = (x, y) => p.createVector(x, y)
+let vdup = v => p.createVector(v.x, v.y)
+
+function drawQuad(vectors, _p = p) {
+	_p.stroke(1)
+	_p.strokeWeight(1)
+	_p.quad(
+		...vectors.reduce((acc, e) => acc.concat([e.x, e.y]), [])
+	)
+}
+function drawLine(vectors, _p = p) {
+	_p.stroke(1)
+	_p.strokeWeight(1)
+	_p.line(
+		...vectors.reduce((acc, e) => acc.concat([e.x, e.y]), [])
+	)
+}
+
+function mirror(p, m) {
+	let dx, dy, a, b;
+	let x2, y2;
+
+	let x0 = m[0].x
+	let x1 = m[1].x
+	let y0 = m[0].y
+	let y1 = m[1].y
+
+	dx = (x1 - x0);
+	dy = (y1 - y0);
+
+	a = (dx * dx - dy * dy) / (dx * dx + dy * dy);
+	b = 2 * dx * dy / (dx * dx + dy * dy);
+
+	x2 = (a * (p.x - x0) + b * (p.y - y0) + x0);
+	y2 = (b * (p.x - x0) - a * (p.y - y0) + y0);
+
+	return v(x2, y2)
+
+}
+
+let el = document.querySelector(".q5")
+let p = new p5('instance', el);
+
+let nx = 0
+let ny = 0
+let nh = s.inch(11 * 3)
+let nw = s.inch(8.5 / 3)
+
+let index = 0
+
+let mainrect = [
+	v(nx, ny),
+	v(nx + nw, ny),
+	v(nx + nw, ny + nh),
+	v(nx, ny + nh)
+]
 
 let sheet2 = {
 	color: '#dff9',
@@ -58,6 +116,20 @@ let sheet4 = {
 	}
 }
 
+let baselines = []
+let off = 350
+for (let i = 0; i < 12; i++) {
+	let o = i > 1 ? off : 0
+	baselines.push([v(nx, ny + (i + 1) * 150 + Math.random() * 45 + o),
+									v(nx + nw, ny + (i + 1) * 150 + Math.random() * 35 + o)])
+}
+baselines.push([vdup(mainrect[3]), vdup(mainrect[2])])
+
+let rup = () => baselines[index][1].add(v(0, -5))
+let lup = () => baselines[index][0].add(v(0, -5))
+let rdown = () => baselines[index][1].add(v(0, +5))
+let ldown = () => baselines[index][0].add(v(0, +5))
+
 let load_json = () => {
 	let f = document.createElement("input");
 	f.style.display = "none";
@@ -79,9 +151,6 @@ let load_json = () => {
 	f.click();
 };
 
-let el = document.querySelector(".q5")
-let p = new p5('instance', el);
-
 // THINK how can you add functional programming concepts in here?
 
 // Signature will take in array of array of contents as spread
@@ -90,17 +159,34 @@ let p = new p5('instance', el);
 
 // To be rethought to have fun grids
 class Structure {}
-
 let mapfn = fn => arr => arr.map(fn)
-
 p.setup = () => {
 	// p.createCanvas(s.inch(11), s.inch(17))
 	// p.createCanvas(s.inch(11*3), s.inch(8.5/3))
 	p.createCanvas(s.inch(11), s.inch(8.5))
 	let el = document.querySelector(".q5")
 	el.style.transform = "scale(" + (1 / s.scale) * viewport + ")"
+	p.angleMode('degrees')
 }
-// either it starts with a symbol or is treated as an array
+
+function throttle( fn, wait ){
+  let lastCall = 0;
+    return function(event){
+    if( Date.now() - lastCall > wait  ){
+      lastCall = Date.now()
+      fn(event)
+    }
+  }
+}
+
+let wheel = (event) => {
+	if (event.delta > 0) right ? rup() : lup()
+	else right ? rdown(): ldown()
+	render()
+}
+
+p.mouseWheel = throttle(wheel, 100)
+		// either it starts with a symbol or is treated as an array
 
 // [x, 1] [2, 3] [4, 5] [6, 7] [8, x], 
 let pagenums = [reactive(0), reactive(6), reactive(0)]
@@ -120,26 +206,11 @@ function render() {
 	let sheetset1 = [sheet1, sheet2]
 	let sheetset2 = [sheet4, sheet4, sheet1, sheet4, sheet1, sheet4, sheet4, sheet4, sheet4]
 
-	let pagenumberv = (i) => [
-		f("TextFrame"), f("{}"),
-		['text', (i > 0 && i<31) ? i+'' : ''],
-		['font_size', [f('point'), 7]],
-		['x', [f('inch'), 0.55]],
-		['y', [f('inch'), 7.65]]
-		]
 
-	let pagenumbery = (i) => [
-		f("TextFrame"), f("{}"),
-		['text', (i > 0 && i<31) ? i+'' : ''],
-		['font_size', [f('point'), 7]],
-		['x', [f('inch'), 5.75]],
-		['y', [f('inch'), 7.65]]
-	]
 
-	let withpagenumbers = contentsOne.map((e, i) => [...e, pagenumberv(i*2-4), pagenumbery(i*2+1-4)])
-	let c1 = transform(withpagenumbers)
+
+	let c1 = transform(contentsOne)
 	let c2 = transform(contentsTwo)
-
 	let signatures = [c2, c1]
 	signatures = signatures.map((s, i) => {
 		limit(pagenums[i], 0, s.length - 1)
@@ -152,13 +223,17 @@ function render() {
 	// 		[f("set"), "signatures", signatures],
 	// 		[f("accordion"), p, o("signatures")]])
 
-	let y = (p.height - height) / 2
+	let _y = (p.height - height) / 2
+	p.push()
+	p.translate(x, y)
+	p.scale(scale)
+	let buff = p.createGraphics(s.inch(11 * 3), s.inch(8.5 / 3))
 	if (printing) {
 		p.background('#fff')
 		drawSaddle(p,
 			signatures[1].spreads,
 			signatures[1].sheets,
-			p.width / 2, y,
+			p.width / 2, _y,
 			signatures[1].spreadNum,
 		)
 		// drawSaddleDouble(p,
@@ -171,15 +246,183 @@ function render() {
 	}
 	else {
 		p.background('#eee')
-		// signatures[1].spreads[1].draw(p, {sheet1})
-		drawSignature(p,
-			signatures[1].spreads,
-			signatures[1].sheets,
-			p.width / 2, y,
-			signatures[1].spreadNum
-		)
+		signatures[1].spreads[1].draw(buff)
+		drawingFolds(buff)
+		// p.image(buff, 0, 0, buff.width, buff.height)
+		p.stroke(0)
+		p.noFill()
+		p.rect(0, 0, buff.width, buff.height)
+		// drawSignature(p,
+		// 	signatures[1].spreads,
+		// 	signatures[1].sheets,
+		// 	p.width / 2, _y,
+		// 	signatures[1].spreadNum
+		// )
 	}
+	p.pop()
 }
+
+function drawingFolds(buff) {
+	console.log("buff", buff.width, buff.height)
+	p.push()
+	p.translate(0, nw)
+	p.rotate(-90)
+	// p.opacity(.3)
+	// p.rotate(-p.mouseX)
+
+	let circles = img => {
+		img.push()
+		// img.rotate(-5)
+		img.angleMode(img.DEGREE)
+		img.rotate(90)
+		img.translate(0,-buff.height)
+		// img.translate(0, -buff.height)
+		img.image(buff, 0,0, buff.width, buff.height)
+		// img.rect(0,0,buff.width, buff.height)
+		img.pop()
+	}
+
+	let imgss = p.createGraphics(buff.height, buff.width)
+	circles(imgss)
+	p.image(imgss, nx, ny, buff.height, buff.width)
+
+	let lines = JSON.parse(JSON.stringify(baselines))
+	let linescopy = JSON.parse(JSON.stringify(baselines))
+
+	// drawQuad(mainrect, )
+	lines.forEach((e, i) => {
+		if (i == index) {
+			p.stroke(255, 0, 0)
+			p.strokeWeight(1)
+			p.line(e[0].x, e[0].y, e[1].x, e[1].y,)
+		}
+		else drawLine(e)
+	})
+
+	p.opacity(.95)
+
+	let drawat = []
+	let _index = 0
+	let currentline = []
+	let currentmirror = []
+	if (right) {
+		let pp = p.createGraphics(p.width, p.height)
+		pp.fill(255)
+		pp.opacity(.95)
+		pp.push()
+		pp.translate(350, 150)
+
+		while (lines.length > 1) {
+			let popped = lines.shift()
+			let mirrorline = [popped[0], popped[1]]
+			let f = [mirrorline[0], mirrorline[1], lines[0][1], lines[0][0],].reduce((acc, e) => {
+				let otherside = mirror(e, mirrorline)
+				acc.push(otherside)
+				return acc
+			}, [])
+
+			lines = lines.reduce((acc, e) => {
+				// let otherside = mirror(e, mirrorline)
+				acc.push([mirror(e[0], mirrorline), mirror(e[1], mirrorline)])
+				return acc
+			}, [])
+
+			pp.fill(205)
+			// drawQuad(tomirror)
+			pp.fill(255, 150, 150)
+			drawQuad(f, pp)
+			mirrorline.map((e, i) => { pp.text(i, e.x, e.y) })
+			mainrect.map((e, i) => { pp.text(i, e.x, e.y) })
+
+			if (_index == index) {
+				currentline = popped
+				currentmirror = mirrorline
+			}
+
+			if (_index % 2 == 1) {
+				let img = pp.createGraphics(buff.height, buff.width)
+				circles(img)
+
+				let mask = pp.createGraphics(nw, nh)
+				// drawQuad(v(0,0), v(30,15), v(28,45), v(0,45), mask)
+				let vv1 = baselines[_index]
+				let vv2 = baselines[_index + 1]
+				let cuttl = [vv1[0].x - nx, vv1[0].y - ny]
+				mask.quad(
+					cuttl[0],
+					cuttl[1],
+					vv1[1].x - nx,
+					vv1[1].y - ny,
+
+					vv2[1].x - nx,
+					vv2[1].y - ny,
+					vv2[0].x - nx,
+					vv2[0].y - ny
+				)
+				img.mask(mask)
+				let yy = pp.min(cuttl[1], vv1[1].y - ny)
+				img = img.get(cuttl[0], yy, nw, pp.max(vv2[1].y, vv2[0].y) - yy)
+
+				let realcurrentline = linescopy[_index]
+				let start = vdup(realcurrentline[0])
+				let end = vdup(mirrorline[0])
+				let diffv = end.sub(start)
+				let transformedline = realcurrentline.map(v => vdup(v)).map(e => e.add(diffv))
+
+				let p2 = mirrorline[0]
+				let p1 = mirrorline[1]
+				let p3 = transformedline[1]
+
+				let inv = 1
+				if (p1.y - p3.y < 0) inv = -1
+
+				// pp.stroke(255,0,255)
+				// pp.strokeWeight(5)
+				// pp.line(transformedline[0].x, transformedline[0].y, transformedline[1].x, transformedline[1].y)
+				// pp.triangle(p1.x,p1.y, p2.x, p2.y, p3.x, p3.y)
+
+				let AB = pp.dist(p1.x, p1.y, p2.x, p2.y);
+				let BC = pp.dist(p2.x, p2.y, p3.x, p3.y);
+				let AC = pp.dist(p1.x, p1.y, p3.x, p3.y);
+				let cosAngle = (AB * AB + BC * BC - AC * AC) / (2 * AB * BC);
+				// cosAngle = pp.constrain(cosAngle, -1, 1);
+				let _angle = pp.acos(cosAngle)
+
+				pp.push()
+				let off = 0
+				if (p3.y < p2.y) off = p2.y - p3.y
+				pp.translate(mirrorline[0].x, mirrorline[0].y)
+				pp.rotate(_angle * inv)
+				pp.image(img, 0, -off, img.width, img.height)
+				pp.pop()
+
+			}
+
+			_index++
+
+		}
+		// pp.line(currentline[0].x, currentline[0].y, currentline[1].x, currentline[1].y)
+
+		pp.pop()
+		p.image(pp, -550, 50, pp.width, pp.height)
+	}
+
+	p.stroke(255, 0, 0)
+	p.strokeWeight(1)
+
+	p.stroke(255, 0, 255)
+	// p.line(transformedline[0].x, transformedline[0].y,transformedline[1].x, transformedline[1].y)
+	p.text(index, 30, 50)
+
+	p.stroke(0, 0, 255)
+
+
+	p.pop()
+}
+
+let x = 0
+let scale = 1
+let y = 0
 
 let contentsOne = [
 	[
@@ -372,10 +615,10 @@ let plus = (e) => e + 1
 
 let exportmaybe = () => {
 	pagenums[1].next(0)
-	for (let i = 0; i<19; i++){
+	for (let i = 0; i < 19; i++) {
 		setTimeout(() => {
 			p.save("ead-spreads-" + pagenums[1].value() + ".jpg")
-			pagenums[1].next(e => e+1)
+			pagenums[1].next(e => e + 1)
 		}, 850)
 	}
 }
@@ -384,7 +627,7 @@ let ui = dom(
 	[".root",
 		sidebar,
 		['.ui',
-		 ...pagenums.slice(1,2).map(num => ['div',
+			...pagenums.slice(1, 2).map(num => ['div',
 				button(() => num.next(v => v - 1), 'prev'),
 				['span.number', num],
 				button(() => num.next(v => v + 1), 'next'),
@@ -397,16 +640,21 @@ let ui = dom(
 			],
 
 			['div',
-			 button(() => {
-				 let m = document.querySelector(".main-container")
-				 m.style.left  = (parseFloat(m.style.left) - 200) + 'px'
-				}, "<-"),
-			 button(() => {
-				 let m = document.querySelector(".main-container")
-				 console.log(m.style.left)
-				 if (m.style.left) m.style.left = (parseFloat(m.style.left) + 200) + 'px'
-				 else m.style.left = '180px'
-				}, "->"),
+				['div',
+					button(() => { x -= 100; render() }, "<-"),
+					button(() => { x += 100; render() }, "->"),
+				],
+
+				['div',
+					button(() => { y -= 100; render() }, "^"),
+					button(() => { y += 100; render() }, "v"),
+				],
+
+				['div',
+					button(() => { scale += .1; render() }, "+"),
+					button(() => { scale -= .1; render() }, "-"),
+				],
+
 			],
 		]])
 
@@ -477,17 +725,21 @@ let mountinput = (attr, after = false) => {
 
 document.onkeydown = e => {
 	if (e.key == 'l') pagenums[0].next(v => v + 1)
-	if (e.key == 'R') {
-		let [ref, refindex] = getcurrentref()
-		let item = ref[refindex]
-		// Make a history for execution reversal
-		// ref[refindex] = [f("History"), 1, item,runa(item)]
-		console.log(runa(ref[refindex]))
-		ref[refindex] = runa(item)
-		uirenders.next(plus)
-		render()
+	// if (e.key == 'R') {
+	// 	let [ref, refindex] = getcurrentref()
+	// 	let item = ref[refindex]
+	// 	// Make a history for execution reversal
+	// 	// ref[refindex] = [f("History"), 1, item,runa(item)]
+	// 	console.log(runa(ref[refindex]))
+	// 	ref[refindex] = runa(item)
+	// 	uirenders.next(plus)
+	// 	render()
 
-	}
+	// }
+
+	if (e.key == 'q'){index > 0 ? index--:null}
+	if (e.key == 'e'){baselines.length-2 > index ? index++:null}
+	if (e.key == 'w'){right = !right}
 
 	if (e.key == 'f') {
 		let [ref, refindex] = getcurrentref()
