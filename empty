@@ -1,0 +1,8 @@
+This book was typset in +:marker [NAME TBD] +:reset Tool. +:marker [NAME TBD] +:reset is a result of an interrogation of typographic vocabulary; vocabulary implemented as code. +:marker [NAME TBD] +:reset uses this implementation of typographic vocabulary that affords the user functions such as: 
+
+1. basic typesetting
+2. page composition
+3. ability to play with various impositions 
+4. explore alternative forms of books
+
+Release for +:marker [NAME TBD] +:reset is pending. +:marker [NAME TBD] +:reset can be accessed and used through assembling parts from +:marker [github.com/caizoryan] +:reset repositories or through friendship with developer.
