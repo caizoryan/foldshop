@@ -125,10 +125,10 @@ for (let i = 0; i < 12; i++) {
 }
 baselines.push([vdup(mainrect[3]), vdup(mainrect[2])])
 
-let rup = () => baselines[index][1].add(v(0, -5))
-let lup = () => baselines[index][0].add(v(0, -5))
-let rdown = () => baselines[index][1].add(v(0, +5))
-let ldown = () => baselines[index][0].add(v(0, +5))
+let rup = () => baselines[index][1].add(v(0, -10))
+let lup = () => baselines[index][0].add(v(0, -10))
+let rdown = () => baselines[index][1].add(v(0, +10))
+let ldown = () => baselines[index][0].add(v(0, +10))
 
 let load_json = () => {
 	let f = document.createElement("input");
@@ -161,8 +161,6 @@ let load_json = () => {
 class Structure {}
 let mapfn = fn => arr => arr.map(fn)
 p.setup = () => {
-	// p.createCanvas(s.inch(11), s.inch(17))
-	// p.createCanvas(s.inch(11*3), s.inch(8.5/3))
 	p.createCanvas(s.inch(11), s.inch(8.5))
 	let el = document.querySelector(".q5")
 	el.style.transform = "scale(" + (1 / s.scale) * viewport + ")"
@@ -183,9 +181,10 @@ let wheel = (event) => {
 	if (event.delta > 0) right ? rup() : lup()
 	else right ? rdown(): ldown()
 	render()
+	save_data()
 }
 
-p.mouseWheel = throttle(wheel, 100)
+p.mouseWheel = wheel
 		// either it starts with a symbol or is treated as an array
 
 // [x, 1] [2, 3] [4, 5] [6, 7] [8, x], 
@@ -194,10 +193,11 @@ let oninit = []
 setTimeout(() => oninit.forEach(fn => fn()), 500)
 
 oninit.push(() => {
-	pagenums.forEach(f => f.subscribe(render))
+	pagenums.forEach(f => f.subscribe(() => render()))
 	render()
 })
-function render() {
+function render(_p=p) {
+	_p.background('white')
 	let transform = a => a
 		.map(mapfn(e => runa(e)))
 		.map(f => spread(f, (g) => g))
@@ -223,17 +223,18 @@ function render() {
 	// 		[f("set"), "signatures", signatures],
 	// 		[f("accordion"), p, o("signatures")]])
 
-	let _y = (p.height - height) / 2
-	p.push()
-	p.translate(x, y)
-	p.scale(scale)
-	let buff = p.createGraphics(s.inch(11 * 3), s.inch(8.5 / 3))
+	let _y = (_p.height - height) / 2
+	_p.angleMode('degrees')
+	_p.push()
+	_p.translate(x, y)
+	_p.scale(scale)
+	let buff = _p.createGraphics(s.inch(11 * 3), s.inch(8.5 / 3))
 	if (printing) {
-		p.background('#fff')
-		drawSaddle(p,
+		_p.background('#fff')
+		drawSaddle(_p,
 			signatures[1].spreads,
 			signatures[1].sheets,
-			p.width / 2, _y,
+			_p.width / 2, _y,
 			signatures[1].spreadNum,
 		)
 		// drawSaddleDouble(p,
@@ -245,13 +246,20 @@ function render() {
 		// )
 	}
 	else {
-		p.background('#eee')
+		_p.background('#eee')
 		signatures[1].spreads[1].draw(buff)
-		drawingFolds(buff)
-		// p.image(buff, 0, 0, buff.width, buff.height)
-		p.stroke(0)
-		p.noFill()
-		p.rect(0, 0, buff.width, buff.height)
+		let test = _p.createGraphics(_p.width, _p.height)
+
+		// test.push()
+		// test.translate(x, y)
+		// test.scale(scale)
+		drawingFolds(_p, buff)
+		// test.pop()
+
+		_p.image(test, 0, 0, _p.width, _p.height)
+		_p.stroke(0)
+		_p.noFill()
+		_p.rect(0, 0, buff.width, buff.height)
 		// drawSignature(p,
 		// 	signatures[1].spreads,
 		// 	signatures[1].sheets,
@@ -259,58 +267,76 @@ function render() {
 		// 	signatures[1].spreadNum
 		// )
 	}
-	p.pop()
+	_p.pop()
 }
 
-function drawingFolds(buff) {
-	console.log("buff", buff.width, buff.height)
-	p.push()
-	p.translate(0, nw)
-	p.rotate(-90)
-	// p.opacity(.3)
-	// p.rotate(-p.mouseX)
+let bitchrender = () => {
+	p.background('white')
+	let oldscale = scale
+	let oldy = y
+	scale=1
+	y=0
+	let bitch = p.createGraphics(p.width, p.height)
+	render(bitch)
+	x=s.inch(0)
+	let a = bitch.get(0,0,nh/3, nw)
+	p.image(a,0,0, nh/3,nw)
+	x=s.inch(-11)
+	render(bitch)
+	let b = bitch.get(0,0,nh/3, nw)
+	p.image(b,0,nw, nh/3,nw)
+	x=s.inch(-22)
+	render(bitch)
+	let c = bitch.get(0,0,nh/3, nw)
+	p.image(c,0,nw*2, p.width,nw)
+	x=s.inch(0)
+	scale = oldscale
+	y = oldy
+	// p.image(a, 0,s.inch(8.5)/3, s.inch(11), s.inch(8.5/3))
+}
+
+let drawfold = true
+function drawingFolds(pp, buff) {
+	pp.push()
+	pp.translate(0, nw)
+	pp.rotate(-90)
 
 	let circles = img => {
 		img.push()
-		// img.rotate(-5)
 		img.angleMode(img.DEGREE)
 		img.rotate(90)
 		img.translate(0,-buff.height)
-		// img.translate(0, -buff.height)
 		img.image(buff, 0,0, buff.width, buff.height)
-		// img.rect(0,0,buff.width, buff.height)
 		img.pop()
 	}
 
-	let imgss = p.createGraphics(buff.height, buff.width)
+	let imgss = pp.createGraphics(buff.height, buff.width)
 	circles(imgss)
-	p.image(imgss, nx, ny, buff.height, buff.width)
+	pp.image(imgss, nx, ny, buff.height, buff.width)
 
 	let lines = JSON.parse(JSON.stringify(baselines))
 	let linescopy = JSON.parse(JSON.stringify(baselines))
 
-	// drawQuad(mainrect, )
 	lines.forEach((e, i) => {
 		if (i == index) {
-			p.stroke(255, 0, 0)
-			p.strokeWeight(1)
-			p.line(e[0].x, e[0].y, e[1].x, e[1].y,)
+			pp.stroke(255, 0, 0)
+			pp.strokeWeight(1)
+			pp.line(e[0].x, e[0].y, e[1].x, e[1].y,)
 		}
-		else drawLine(e)
+		else drawLine(e, pp)
 	})
-
-	p.opacity(.95)
+	pp.opacity(.95)
 
 	let drawat = []
 	let _index = 0
 	let currentline = []
 	let currentmirror = []
-	if (right) {
-		let pp = p.createGraphics(p.width, p.height)
-		pp.fill(255)
-		pp.opacity(.95)
-		pp.push()
-		pp.translate(350, 150)
+	if (drawfold) {
+		let fold = pp.createGraphics(pp.width*3, pp.height*3)
+		fold.fill(255)
+		fold.opacity(.95)
+		fold.push()
+		fold.translate(350, 150)
 
 		while (lines.length > 1) {
 			let popped = lines.shift()
@@ -327,12 +353,12 @@ function drawingFolds(buff) {
 				return acc
 			}, [])
 
-			pp.fill(205)
+			fold.fill(205)
 			// drawQuad(tomirror)
-			pp.fill(255, 150, 150)
-			drawQuad(f, pp)
-			mirrorline.map((e, i) => { pp.text(i, e.x, e.y) })
-			mainrect.map((e, i) => { pp.text(i, e.x, e.y) })
+			fold.fill(255, 150, 150)
+			drawQuad(f, fold)
+			mirrorline.map((e, i) => { fold.text(i, e.x, e.y) })
+			mainrect.map((e, i) => { fold.text(i, e.x, e.y) })
 
 			if (_index == index) {
 				currentline = popped
@@ -340,10 +366,10 @@ function drawingFolds(buff) {
 			}
 
 			if (_index % 2 == 1) {
-				let img = pp.createGraphics(buff.height, buff.width)
+				let img = fold.createGraphics(buff.height, buff.width)
 				circles(img)
 
-				let mask = pp.createGraphics(nw, nh)
+				let mask = fold.createGraphics(nw, nh)
 				// drawQuad(v(0,0), v(30,15), v(28,45), v(0,45), mask)
 				let vv1 = baselines[_index]
 				let vv2 = baselines[_index + 1]
@@ -360,8 +386,8 @@ function drawingFolds(buff) {
 					vv2[0].y - ny
 				)
 				img.mask(mask)
-				let yy = pp.min(cuttl[1], vv1[1].y - ny)
-				img = img.get(cuttl[0], yy, nw, pp.max(vv2[1].y, vv2[0].y) - yy)
+				let yy = fold.min(cuttl[1], vv1[1].y - ny)
+				img = img.get(cuttl[0], yy, nw, fold.max(vv2[1].y, vv2[0].y) - yy)
 
 				let realcurrentline = linescopy[_index]
 				let start = vdup(realcurrentline[0])
@@ -381,20 +407,20 @@ function drawingFolds(buff) {
 				// pp.line(transformedline[0].x, transformedline[0].y, transformedline[1].x, transformedline[1].y)
 				// pp.triangle(p1.x,p1.y, p2.x, p2.y, p3.x, p3.y)
 
-				let AB = pp.dist(p1.x, p1.y, p2.x, p2.y);
-				let BC = pp.dist(p2.x, p2.y, p3.x, p3.y);
-				let AC = pp.dist(p1.x, p1.y, p3.x, p3.y);
+				let AB = fold.dist(p1.x, p1.y, p2.x, p2.y);
+				let BC = fold.dist(p2.x, p2.y, p3.x, p3.y);
+				let AC = fold.dist(p1.x, p1.y, p3.x, p3.y);
 				let cosAngle = (AB * AB + BC * BC - AC * AC) / (2 * AB * BC);
 				// cosAngle = pp.constrain(cosAngle, -1, 1);
-				let _angle = pp.acos(cosAngle)
+				let _angle = fold.acos(cosAngle)
 
-				pp.push()
+				fold.push()
 				let off = 0
 				if (p3.y < p2.y) off = p2.y - p3.y
-				pp.translate(mirrorline[0].x, mirrorline[0].y)
-				pp.rotate(_angle * inv)
-				pp.image(img, 0, -off, img.width, img.height)
-				pp.pop()
+				fold.translate(mirrorline[0].x, mirrorline[0].y)
+				fold.rotate(_angle * inv)
+				fold.image(img, 0, -off, img.width, img.height)
+				fold.pop()
 
 			}
 
@@ -403,21 +429,16 @@ function drawingFolds(buff) {
 		}
 		// pp.line(currentline[0].x, currentline[0].y, currentline[1].x, currentline[1].y)
 
-		pp.pop()
-		p.image(pp, -550, 50, pp.width, pp.height)
+		fold.pop()
+		pp.image(fold, -550, 50, fold.width, fold.height)
 	}
 
-	p.stroke(255, 0, 0)
-	p.strokeWeight(1)
-
-	p.stroke(255, 0, 255)
-	// p.line(transformedline[0].x, transformedline[0].y,transformedline[1].x, transformedline[1].y)
-	p.text(index, 30, 50)
-
-	p.stroke(0, 0, 255)
+	pp.stroke(255, 0, 0)
+	pp.strokeWeight(1)
+	pp.text(index, 30, 50)
 
 
-	p.pop()
+	pp.pop()
 }
 
 let x = 0
@@ -480,10 +501,26 @@ let contentsOne = [
 	[foot(['Fall'])], [],
 ]
 
-if (localStorage.getItem("data")) {
-	contentsOne = JSON.parse(localStorage.getItem('data'))
-}
 
+let load = () => {
+	if (localStorage.getItem("data")) {
+		contentsOne = JSON.parse(localStorage.getItem('data'))
+	}
+	let d = localStorage.getItem('lines')
+	if (d){
+		let	_baselines = JSON.parse(d).map(line => line.map(point => v(point.x, point.y)))
+		if (_baselines.length < baselines.length) _baselines = _baselines.concat(baselines.slice(_baselines.length-1))
+		// for(let i = 2; i<_baselines.length; i++){
+		// 	setTimeout(() => baselines = _baselines.slice(0,i+1), i*50)
+		// }
+
+		// for(let i = _baselines.length; i>2; i--){
+		// 	setTimeout(() => baselines = _baselines.slice(0,i+1), baselines.length*50 - (i*50))
+		// }
+		baselines=_baselines
+	}
+}
+load()
 
 let contentsTwo = [
 	[foot(['2025', 'right'])], [], [foot(['screenings', 'right'])], [foot(['lucida', 'right'])], [],
@@ -601,9 +638,13 @@ let arrayui = (arr, address = [], renderer = defaultrenderer) => {
 		...f]
 }
 let uirenders = reactive(0)
-uirenders.subscribe(() => {
+uirenders.subscribe(() => {save_data()})
+
+let save_data = () => {
+	let storable = baselines.map(line => line.map(point => ({x: point.x, y: point.y})))
+	localStorage.setItem('lines', JSON.stringify(storable))
 	localStorage.setItem('data', JSON.stringify(contentsOne))
-})
+}
 
 let current = contentsOne
 let sidebar = [
@@ -737,9 +778,15 @@ document.onkeydown = e => {
 
 	// }
 
-	if (e.key == 'q'){index > 0 ? index--:null}
-	if (e.key == 'e'){baselines.length-2 > index ? index++:null}
-	if (e.key == 'w'){right = !right}
+	if (e.key == 'q'){index > 0 ? index--:null;render()}
+	if (e.key == 'e'){baselines.length-2 > index ? index++:null;render()}
+	if (e.key == 'w'){right = !right;render()}
+	if (e.key == 'r'){
+		drawfold = !drawfold
+		if (!drawfold) bitchrender()
+		else render()
+	}
+
 
 	if (e.key == 'f') {
 		let [ref, refindex] = getcurrentref()
